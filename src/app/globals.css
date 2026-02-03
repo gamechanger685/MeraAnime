@@ -1,26 +1,141 @@
+/* src/app/globals.css */
 @import "tailwindcss";
 
+/* --- 1. THEME & NEURAL CORE VARIABLES --- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #050505;
+  --foreground: #ededed;
+  --accent-color: #ff6b00; 
+  --accent-glow: rgba(255, 107, 0, 0.44);
+  
+  /* Responsive Layout Variables */
+  --sidebar-w: 0px; 
+  --navbar-h: 60px;
+  
+  /* Fluid Font Sizes (Automatically scales between mobile & desktop) */
+  --font-step-1: clamp(1rem, 0.9rem + 0.5vw, 1.5rem);
+  --font-step-2: clamp(1.5rem, 1.2rem + 1.5vw, 3.5rem);
+  --font-hero: clamp(2.5rem, 1.5rem + 5vw, 8rem);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@media (min-width: 768px) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --sidebar-w: 70px;
+    --navbar-h: 75px;
   }
+}
+
+/* --- 2. BASE BODY STYLES --- */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent; /* Mobile touch highlight remove */
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+  width: 100%;
+  min-height: 100vh;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- 3. RESPONSIVE SCROLLBAR --- */
+::-webkit-scrollbar { 
+  width: 3px; 
+}
+@media (min-width: 768px) {
+  ::-webkit-scrollbar { width: 6px; }
+}
+::-webkit-scrollbar-track { background: var(--background); }
+::-webkit-scrollbar-thumb { 
+  background: var(--accent-color); 
+  border-radius: 50px;
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+/* --- 4. ULTIMATE RESPONSIVE NAVBAR --- */
+.main-navbar-container {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: var(--navbar-h);
+  left: var(--sidebar-w);
+  width: calc(100% - var(--sidebar-w));
+  
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 clamp(1rem, 5%, 3rem); /* Fluid Padding */
+  background: rgba(5, 5, 5, 0.8);
+  backdrop-filter: blur(15px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  z-index: 50; /* Reasonable z-index */
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Sidebar hover push logic - Only for Mouse devices (Laptops+) */
+@media (min-width: 1024px) {
+  aside:hover ~ .main-navbar-container {
+    --sidebar-w: 260px;
+  }
+}
+
+/* --- 5. UI COMPONENTS (Fluid & Tactile) --- */
+.crunchy-card {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: clamp(1rem, 2vw, 2.5rem);
+  padding: clamp(1rem, 3vw, 2rem);
+  transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Mobile Friendly Hover */
+@media (hover: hover) {
+  .crunchy-card:hover {
+    border-color: var(--accent-color);
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 15px 30px -10px var(--accent-glow);
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+
+/* Logo Fix */
+.logo {
+  height: clamp(3em, 8vw, 6em);
+  padding: 0.5em;
+  will-change: filter;
+  transition: filter 0.3s ease;
+}
+
+/* --- 6. UTILITY CLASSES FOR THE WHOLE SITE --- */
+.fluid-heading {
+  font-size: var(--font-step-2);
+  font-weight: 1000;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.hero-title {
+  font-size: var(--font-hero);
+  font-weight: 1000;
+  line-height: 0.85;
+  letter-spacing: -0.07em;
+}
+
+/* Container to keep content centered on ultra-wide screens */
+.page-container {
+  width: 100%;
+  max-width: 1920px;
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 5vw, 5rem);
+}
+
+/* Prevent image dragging on mobile */
+img {
+  user-select: none;
+  -webkit-user-drag: none;
 }

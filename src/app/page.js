@@ -1,65 +1,138 @@
-import Image from "next/image";
+'use client';
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { collection, getDocs, query, limit } from "firebase/firestore";
+import { db } from '@/firebase'; 
+import { useRouter } from 'next/navigation';
+import { useTheme } from '@/context/ThemeContext'; 
+import { Activity, Play, Star, User } from 'lucide-react';
+import HeroSlider from '@/components/HeroSlider';
+import { getTMDBData } from '@/lib/tmdb';
 
 export default function Home() {
+  const [enrichedData, setEnrichedData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState('All');
+  const router = useRouter();
+  const { themeColor } = useTheme();
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const querySnapshot = await getDocs(query(collection(db, "anime"), limit(20)));
+        const list = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          // Placeholder loading image
+          landscapeImg: 'https://placehold.co/600x400/050505/FFF?text=Loading+Neural+Grid...' 
+        }));
+
+        setEnrichedData(list);
+        setIsLoading(false);
+
+        // TMDB Enrichment (Background)
+        list.forEach(async (anime, index) => {
+          const tmdb = await getTMDBData(anime.title || anime.animeTitle);
+          if (tmdb?.banner) {
+            setEnrichedData(prev => {
+              const updated = [...prev];
+              if (updated[index]) updated[index].landscapeImg = tmdb.banner;
+              return updated;
+            });
+          }
+        });
+      } catch (err) {
+        console.error(err);
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  if (isLoading) return <div className="h-screen flex items-center justify-center bg-[#050505]"><Activity className="animate-spin" color={themeColor} /></div>;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.js file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="min-h-screen bg-[#050505] text-white overflow-x-hidden">
+      {/* 1. HERO SLIDER */}
+      <div className="relative w-full">
+        <HeroSlider animeData={enrichedData.slice(0, 5)} themeColor={themeColor} />
+      </div>
+
+      <div className="px-4 md:px-10 py-12 max-w-[1600px] mx-auto">
+        {/* 2. PREMIUM CATEGORY BAR */}
+        <div className="flex gap-4 overflow-x-auto pb-10 no-scrollbar">
+          {['All', 'Action', 'Movie', 'Hindi Dub'].map(cat => (
+            <button 
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`px-8 py-2.5 rounded-full text-[11px] font-black uppercase tracking-[2px] transition-all border ${
+                activeCategory === cat ? 'bg-white text-black border-white scale-105' : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'
+              }`}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* 3. NEURAL LIBRARY (Netflix Landscape Style) */}
+        <div className="flex items-center gap-4 mb-8">
+           <h3 className="text-2xl md:text-4xl font-[1000] italic uppercase tracking-tighter italic">Neural Library</h3>
+           <div className="flex-1 h-[2px] bg-gradient-to-r from-white/20 to-transparent"></div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
+          {enrichedData.map((anime) => (
+            <div 
+              key={anime.id} 
+              className="group cursor-pointer"
+              onClick={() => router.push(`/anime/${anime.id}`)}
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              {/* TMDB Image Container */}
+              <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/5 bg-zinc-900 shadow-2xl transition-all duration-500 group-hover:border-theme/40">
+                <img 
+                  src={anime.landscapeImg} 
+                  onError={(e) => {
+                   // Agar TMDB fail ho toh Jikan wali poster dikhao, wo bhi fail ho toh placeholder
+                   e.target.src = anime.poster || 'https://placehold.co/600x400/050505/FFF?text=No+Image';
+                  }}
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-80 group-hover:opacity-100" 
+                  alt="banner"
+                />
+                
+                {/* Overlay Info */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+                
+                <div className="absolute bottom-4 left-4">
+                   <div className="flex items-center gap-2 mb-1">
+                      <span className="bg-white/10 backdrop-blur-md text-[9px] px-2 py-0.5 rounded font-bold border border-white/10 uppercase tracking-tighter">HD • {anime.type || 'TV'}</span>
+                   </div>
+                </div>
+
+                {/* <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-black shadow-2xl transform scale-75 group-hover:scale-100 transition-transform">
+                    <Play fill="currentColor" size={4} />
+                  </div>
+                </div> */}
+              </div>
+
+              {/* Title & Metadata */}
+              <div className="mt-4 px-1">
+                <h4 className="font-black text-lg md:text-xl uppercase truncate tracking-tight group-hover:text-theme transition-colors">
+                  {anime.title || anime.animeTitle}
+                </h4>
+                <div className="flex items-center gap-3 mt-1 text-[11px] font-bold text-zinc-500">
+                  <div className="flex items-center gap-1 text-yellow-500">
+                    <Star size={12} fill="currentColor" />
+                    <span>{anime.score || '8.5'}</span>
+                  </div>
+                  <span>•</span>
+                  <span className="uppercase tracking-widest text-zinc-400">Sci-Fi • Action</span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </div>
     </div>
   );
 }
