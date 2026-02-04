@@ -23,7 +23,7 @@ function TransferContent() {
         <div className="mb-8 border-l-4 pl-6" style={{ borderColor: themeColor }}>
           <h1 className="text-4xl font-black uppercase tracking-tighter italic">{animeName}</h1>
           <p className="text-white/50 font-mono tracking-widest uppercase text-[10px] mt-2">
-            Status: {API_KEY ? 'API_CONNECTED' : 'API_MISSING'} // Isse humein pata chal jayega key mil rahi hai ya nahi
+            Status: {API_KEY ? 'API_CONNECTED' : 'API_MISSING'} 
           </p>
         </div>
 
