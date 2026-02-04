@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { Analytics } from '@vercel/analytics/next';
 import { db } from '@/firebase'; 
 import { ThemeProvider, useTheme } from '@/context/ThemeContext';
 import Sidebar from '@/components/Sidebar';
@@ -25,6 +26,7 @@ export default function RootLayout({ children }) {
         <ThemeProvider>
           <LayoutContent>{children}</LayoutContent>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
