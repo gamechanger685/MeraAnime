@@ -9,6 +9,7 @@ import Navbar from '@/components/Navbar';
 import AnimeFooter from '@/components/AnimeFooter';
 import MaintenanceTimer from '@/components/MaintenanceTimer';
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next"
 
 export default function RootLayout({ children }) {
   return (
