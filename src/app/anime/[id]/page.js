@@ -146,18 +146,21 @@ function AnimeDetails() {
               </div>
             ) : (
               <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
-                {dbEpisodes.filter(e => Number(e.season_number) === selectedSeason).sort((a,b)=>a.episode_number - b.episode_number).map(ep => (
-                  <button 
-                    key={ep.id} 
-                    onClick={() => router.push({ pathname: '/transfer', query: { animeId: id, epId: ep.id } })}
-                    className="aspect-square bg-white/5 border border-white/5 rounded-2xl flex items-center justify-center font-black hover:scale-105 transition-all active:scale-95"
-                    style={{ '--hover-color': themeColor }}
-                  >
-                    {ep.episode_number}
-                  </button>
-                ))}
-                <button onClick={() => setViewMode('seasons')} className="col-span-full mt-6 text-[10px] font-black text-zinc-500 uppercase tracking-widest text-center">Back to Index</button>
-              </div>
+  {dbEpisodes
+    .filter(e => Number(e.season_number) === selectedSeason)
+    .sort((a, b) => a.episode_number - b.episode_number)
+    .map(ep => (
+      <button 
+        key={ep.id} 
+        // FIX: Next.js App Router format
+                onClick={() => router.push(`/transfer?animeId=${id}&epId=${ep.id}&theme=${themeColor.replace('#', '')}`)}
+               className="aspect-square bg-white/5 border border-white/5 rounded-2xl flex items-center justify-center font-black hover:scale-105 transition-all active:scale-95"
+               style={{ borderBottom: `2px solid ${themeColor}` }} // Chota sa neon touch niche
+               >
+              {ep.episode_number}
+             </button>
+            ))}
+          </div>
             )}
           </div>
         </div>
