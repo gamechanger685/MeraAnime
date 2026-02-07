@@ -99,7 +99,7 @@ function AnimeDetails() {
   );
 
   return (
-    <div className="min-h-screen bg-[#020202] text-white pt-28 pb-12 px-6 lg:px-12">
+    <div className="min-h-screen bg-[#020202] text-white pt-7 pb-12 px-6 lg:px-12">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12">
         
         {/* Poster Section */}
