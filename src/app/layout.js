@@ -1,99 +1,50 @@
-'use client';
-
-import React, { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
-import { db } from '@/firebase'; 
-import { ThemeProvider, useTheme } from '@/context/ThemeContext';
-import Sidebar from '@/components/Sidebar';
-import Navbar from '@/components/Navbar';
-import AnimeFooter from '@/components/AnimeFooter';
-import MaintenanceTimer from '@/components/MaintenanceTimer';
+import { ThemeProvider } from '@/context/ThemeContext';
+import LayoutContent from './layoutcontent'; 
 import "./globals.css";
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from "@vercel/analytics/next";
+
+// --- TIGHT SEO METADATA (Crunchyroll Level) ---
+export const metadata = {
+  title: {
+    default: 'MeraAnime | Watch & Download Hindi Dubbed Anime Free',
+    template: '%s | MeraAnime'
+  },
+  description: 'MeraAnime is the #1 platform for Hindi Dubbed and Subbed anime. Stream in 1080p, download via TeraBox, and enjoy a lag-free experience.',
+  keywords: ['anime hindi dubbed', 'download anime free', 'watch anime online', 'meraanime', 'crunchyroll free alternative'],
+  metadataBase: new URL('https://meraanime.vercel.app'),
+  
+  // --- YAHAN GOOGLE VERIFICATION ADD KI HAI ---
+  verification: {
+    google: 'googlefe9665bb2b516432', 
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+    },
+  },
+};
+
+export const viewport = {
+  themeColor: '#050505',
+  width: 'device-width',
+  initialScale: 1,
+};
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <head>
-        {/* SEO & Title */}
-        <title>MeraAnime | Download Hindi Dub & Subbed Anime</title>
-        <meta name="description" content="Download and watch latest Hindi Dubbed anime on MeraAnime." />
-        
-        {/* Default Favicon Placeholder (Taake load hote hi icon aaye) */}
-        <link id="favicon" rel="icon" href="/favicon.svg" type="image/svg+xml" />
-      </head>
       <body className="bg-[#050505] text-white antialiased">
         <ThemeProvider>
           <LayoutContent>{children}</LayoutContent>
+          <Analytics />
         </ThemeProvider>
       </body>
     </html>
-  );
-}
-
-function LayoutContent({ children }) {
-  const [isLive, setIsLive] = useState(true); 
-  const [isExpanded, setIsExpanded] = useState(false); 
-  const pathname = usePathname();
-  
-  const theme = useTheme();
-  const themeColor = theme?.themeColor || '#ff6b00'; 
-
-  // Favicon Dynamic Update Logic
-  useEffect(() => {
-    // Ye function browser tab ke logo ko theme color ke mutabiq change karega
-    const updateFavicon = () => {
-      const link = document.querySelector("link[rel~='icon']");
-      if (link) {
-        const svgIcon = `
-          <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
-            <circle cx='50' cy='50' r='50' fill='${themeColor.replace('#', '%23')}' />
-            <path d='M25 35 L50 65 L75 35' stroke='black' stroke-width='12' stroke-linecap='round' stroke-linejoin="round" />
-            <circle cx='50' cy='50' r='10' fill='white' />
-          </svg>
-        `.trim();
-        link.href = `data:image/svg+xml,${svgIcon}`;
-      }
-    };
-
-    updateFavicon();
-  }, [themeColor]);
-
-  const hideLayout = ['/login', '/register', '/logout'].includes(pathname);
-
-  // Layout Margin Logic
-  const layoutClasses = !hideLayout 
-    ? (isExpanded ? 'md:ml-64 ml-0' : 'md:ml-20 ml-0') 
-    : 'ml-0';
-
-  return (
-    <div className="min-h-screen flex flex-col lg:flex-row overflow-x-hidden bg-[#050505]">
-      {/* Sidebar Section */}
-      {!hideLayout && (
-        <Sidebar isExpanded={isExpanded} setIsExpanded={setIsExpanded} />
-      )}
-      
-      {/* Main Content Area */}
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${layoutClasses}`}>
-        
-        {/* Maintenance Mode */}
-        {!isLive && <MaintenanceTimer onComplete={() => console.log("Site Locked!")} />}
-        
-        {/* Navbar: Sticky and on Top */}
-        {!hideLayout && (
-          <div className="sticky top-0 z-[100] w-full">
-            <Navbar isExpanded={isExpanded} />
-          </div>
-        )}
-        
-        {/* Page Content: Yahan padding-top bilkul nahi hai taake slider chipak jaye */}
-        <main className="flex-1 w-full max-w-[100vw] mt-[90px]">
-          {children}
-        </main>
-
-        {/* Footer */}
-        {!hideLayout && <AnimeFooter />}
-      </div>
-    </div>
   );
 }
