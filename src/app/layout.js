@@ -3,30 +3,55 @@ import LayoutContent from './layoutcontent';
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 
-// --- TIGHT SEO METADATA (Crunchyroll Level) ---
+// --- THE TOUGHEST SEO CONFIGURATION (1000% RANKING POWER) ---
 export const metadata = {
   title: {
-    default: 'MeraAnime | Watch & Download Hindi Dubbed Anime Free',
+    default: 'MeraAnime | Watch & Download Hindi Dubbed Anime Online Free HD',
     template: '%s | MeraAnime'
   },
-  description: 'MeraAnime is the #1 platform for Hindi Dubbed and Subbed anime. Stream in 1080p, download via TeraBox, and enjoy a lag-free experience.',
-  keywords: ['anime hindi dubbed', 'download anime free', 'watch anime online', 'meraanime', 'crunchyroll free alternative'],
-  metadataBase: new URL('https://meraanime.vercel.app'),
+  description: 'MeraAnime is the fastest streaming platform for Hindi Dubbed and Subbed anime. Download latest episodes in 1080p via TeraBox. No Buffering, No Ads.',
+  keywords: [
+    'MeraAnime', 'watch anime hindi dubbed', 'download anime free', 
+    'hindi dubbed anime download', 'crunchyroll free alternative', 
+    'best anime site pakistan', 'anime subbed hindi'
+  ],
   
-  // --- YAHAN GOOGLE VERIFICATION ADD KI HAI ---
+  // --- AAPKA GOOGLE VERIFICATION TAG (Ab Shamil Hai) ---
   verification: {
-    google: 'googlefe9665bb2b516432', 
+    google: 'rtD6FQXghc0sQGQrUDymwttJCdiHC7vVzkpilf9Hzwo', 
   },
 
+  // Advanced SEO settings for Google Search Bots
+  metadataBase: new URL('https://meraanime.vercel.app'),
+  alternates: {
+    canonical: '/',
+  },
   robots: {
     index: true,
     follow: true,
+    nocache: false,
     googleBot: {
       index: true,
       follow: true,
       'max-video-preview': -1,
       'max-image-preview': 'large',
+      'max-snippet': -1,
     },
+  },
+  openGraph: {
+    title: 'MeraAnime - Watch & Download Hindi Dubbed Anime Free',
+    description: 'High-quality anime streaming with fast servers.',
+    url: 'https://meraanime.vercel.app',
+    siteName: 'MeraAnime',
+    images: [
+      {
+        url: '/og-image.jpg', 
+        width: 1200,
+        height: 630,
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
   },
 };
 
@@ -41,6 +66,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className="bg-[#050505] text-white antialiased">
         <ThemeProvider>
+          {/* LayoutContent client-side logic (Sidebar, Navbar, Favicon) sambhalega */}
           <LayoutContent>{children}</LayoutContent>
           <Analytics />
         </ThemeProvider>

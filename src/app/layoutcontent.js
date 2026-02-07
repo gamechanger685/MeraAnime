@@ -2,36 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { db } from '@/firebase'; 
-import { ThemeProvider, useTheme } from '@/context/ThemeContext';
+import { useTheme } from '@/context/ThemeContext';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
 import AnimeFooter from '@/components/AnimeFooter';
 import MaintenanceTimer from '@/components/MaintenanceTimer';
-import "./globals.css";
-import { Analytics } from "@vercel/analytics/next"
 
-export default function RootLayout({ children }) {
-  return (
-    <html lang="en">
-      <head>
-        {/* SEO & Title */}
-        <title>MeraAnime | Download Hindi Dub & Subbed Anime</title>
-        <meta name="description" content="Download and watch latest Hindi Dubbed anime on MeraAnime." />
-        
-        {/* Default Favicon Placeholder (Taake load hote hi icon aaye) */}
-        <link id="favicon" rel="icon" href="/favicon.svg" type="image/svg+xml" />
-      </head>
-      <body className="bg-[#050505] text-white antialiased">
-        <ThemeProvider>
-          <LayoutContent>{children}</LayoutContent>
-        </ThemeProvider>
-      </body>
-    </html>
-  );
-}
-
-function LayoutContent({ children }) {
+export default function LayoutContent({ children }) {
   const [isLive, setIsLive] = useState(true); 
   const [isExpanded, setIsExpanded] = useState(false); 
   const pathname = usePathname();
@@ -41,7 +18,6 @@ function LayoutContent({ children }) {
 
   // Favicon Dynamic Update Logic
   useEffect(() => {
-    // Ye function browser tab ke logo ko theme color ke mutabiq change karega
     const updateFavicon = () => {
       const link = document.querySelector("link[rel~='icon']");
       if (link) {
@@ -55,43 +31,32 @@ function LayoutContent({ children }) {
         link.href = `data:image/svg+xml,${svgIcon}`;
       }
     };
-
     updateFavicon();
   }, [themeColor]);
 
   const hideLayout = ['/login', '/register', '/logout'].includes(pathname);
+  const layoutClasses = !hideLayout ? (isExpanded ? 'md:ml-64 ml-0' : 'md:ml-20 ml-0') : 'ml-0';
 
-  // Layout Margin Logic
-  const layoutClasses = !hideLayout 
-    ? (isExpanded ? 'md:ml-64 ml-0' : 'md:ml-20 ml-0') 
-    : 'ml-0';
-
+  // YAHAN SE HTML, HEAD, BODY HATADEIN
   return (
     <div className="min-h-screen flex flex-col lg:flex-row overflow-x-hidden bg-[#050505]">
-      {/* Sidebar Section */}
       {!hideLayout && (
         <Sidebar isExpanded={isExpanded} setIsExpanded={setIsExpanded} />
       )}
       
-      {/* Main Content Area */}
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${layoutClasses}`}>
-        
-        {/* Maintenance Mode */}
         {!isLive && <MaintenanceTimer onComplete={() => console.log("Site Locked!")} />}
         
-        {/* Navbar: Sticky and on Top */}
         {!hideLayout && (
           <div className="sticky top-0 z-[100] w-full">
             <Navbar isExpanded={isExpanded} />
           </div>
         )}
         
-        {/* Page Content: Yahan padding-top bilkul nahi hai taake slider chipak jaye */}
         <main className="flex-1 w-full max-w-[100vw] mt-[90px]">
           {children}
         </main>
 
-        {/* Footer */}
         {!hideLayout && <AnimeFooter />}
       </div>
     </div>
