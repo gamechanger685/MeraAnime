@@ -1,13 +1,16 @@
 "use client";
-import React, { Suspense, useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { db } from '@/firebase'; 
-import { collection, query, where, getDocs, limit, doc, updateDoc, increment, addDoc, orderBy, onSnapshot } from "firebase/firestore";
-import { ThumbsUp, ThumbsDown, Share2, Download, MessageCircle, Play, User, Star, Clock } from 'lucide-react';
+import { collection, query, where, getDocs, limit, doc, runTransaction, onSnapshot } from "firebase/firestore";
+import { ThumbsUp, Download, Play, Star, LayoutGrid, Info, Flame, Zap } from 'lucide-react';
+// ThemeContext use karna zaroori hai colors ke liye
+import { useTheme } from '@/context/ThemeContext'; 
 
 const BUNNY_LIBRARY_ID = "593731";
 
 function AnimePortal() {
+  const { themeColor } = useTheme(); // Global theme color fetch kiya
   const searchParams = useSearchParams();
   const router = useRouter();
   const animeId = searchParams?.get('animeId'); 
@@ -15,244 +18,188 @@ function AnimePortal() {
   
   const [videoData, setVideoData] = useState(null);
   const [episodesList, setEpisodesList] = useState([]);
-  const [trending, setTrending] = useState([]);
-  const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState("");
-  const [userAction, setUserAction] = useState(null);
-
-  // 1. Dynamic Theme Picker
-  const currentTheme = videoData?.theme_color || '#00ffaa';
+  const [recommendations, setRecommendations] = useState([]);
+  const [liked, setLiked] = useState(false);
+  const isProcessing = useRef(false);
 
   useEffect(() => {
     if (!animeId || !epId) return;
+    setLiked(!!localStorage.getItem(`liked_${epId}`));
 
-    const fetchData = async () => {
-      try {
-        // Fetch All Episodes for the Grid
-        const q = query(collection(db, "episodes"), where("mal_id", "==", String(animeId)));
-        const snap = await getDocs(q);
-        const eps = [];
-        snap.forEach(doc => {
-          const data = { id: doc.id, ...doc.data() };
-          eps.push(data);
-          if (doc.id === epId) setVideoData(data);
-        });
-        setEpisodesList(eps.sort((a, b) => a.episode_number - b.episode_number));
-
-        // Sync User Action (Like/Dislike) from LocalStorage
-        const savedAction = localStorage.getItem(`action_${epId}`);
-        if (savedAction) setUserAction(savedAction);
-
-        // Fetch Recommendations (Limited to 6)
-        const trendSnap = await getDocs(query(collection(db, "anime"), limit(6)));
-        setTrending(trendSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(a => a.id !== animeId));
-
-      } catch (err) { console.error("Fetch Error:", err); }
-    };
-
-    fetchData();
-
-    // 2. Real-time Comments Listener (Upgrade)
-    const qComm = query(collection(db, "comments"), where("epId", "==", epId), orderBy("timestamp", "desc"));
-    const unsubscribe = onSnapshot(qComm, (snapshot) => {
-      setComments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    const unsubVideo = onSnapshot(doc(db, "episodes", epId), (doc) => {
+      if (doc.exists()) setVideoData(doc.data());
     });
 
-    return () => unsubscribe();
+    const fetchAll = async () => {
+      const [epSnap, trendSnap] = await Promise.all([
+        getDocs(query(collection(db, "episodes"), where("anime_id", "==", animeId))),
+        getDocs(query(collection(db, "anime"), limit(12)))
+      ]);
+      setEpisodesList(epSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => a.episode_number - b.episode_number));
+      setRecommendations(trendSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(a => a.id !== animeId));
+    };
+
+    fetchAll();
+    return () => unsubVideo();
   }, [animeId, epId]);
 
-  const handleInteraction = async (type) => {
-    if (!epId) return;
-    const epRef = doc(db, "episodes", epId);
-    let newUserAction = userAction === type ? null : type;
+  const toggleLike = async () => {
+    if (isProcessing.current) return;
+    isProcessing.current = true;
+    const prevLiked = liked;
+    setLiked(!prevLiked); 
 
     try {
-      // Logic for atomic updates in Firestore
-      if (type === 'like') {
-        await updateDoc(epRef, {
-          likes: userAction === 'like' ? increment(-1) : increment(1),
-          dislikes: userAction === 'dislike' ? increment(-1) : increment(0)
-        });
-      } else {
-        await updateDoc(epRef, {
-          dislikes: userAction === 'dislike' ? increment(-1) : increment(1),
-          likes: userAction === 'like' ? increment(-1) : increment(0)
-        });
-      }
-      setUserAction(newUserAction);
-      newUserAction ? localStorage.setItem(`action_${epId}`, newUserAction) : localStorage.removeItem(`action_${epId}`);
-    } catch (err) { console.error(err); }
-  };
-
-  const postComment = async () => {
-    if(!newComment.trim()) return;
-    try {
-      await addDoc(collection(db, "comments"), {
-        epId,
-        text: newComment,
-        user: "Otaku_" + Math.floor(Math.random() * 999), // Guest placeholder
-        timestamp: new Date(),
-        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${Date.now()}`
+      await runTransaction(db, async (transaction) => {
+        const epRef = doc(db, "episodes", epId);
+        const sfDoc = await transaction.get(epRef);
+        if (!sfDoc.exists()) return;
+        let newLikes = (sfDoc.data().likes || 0) + (prevLiked ? -1 : 1);
+        transaction.update(epRef, { likes: Math.max(0, newLikes) });
       });
-      setNewComment("");
-    } catch (err) { console.error(err); }
+      if (prevLiked) localStorage.removeItem(`liked_${epId}`);
+      else localStorage.setItem(`liked_${epId}`, "true");
+    } catch (e) { setLiked(prevLiked); } finally { isProcessing.current = false; }
   };
+
+  if (!videoData) return <div className="h-screen bg-black flex items-center justify-center font-black animate-pulse uppercase tracking-[0.5em]" style={{ color: themeColor }}>INITIALIZING_NEURAL_LINK...</div>;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-zinc-100 p-4 lg:p-10 font-sans">
-      <div className="max-w-[1500px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10">
+    <div className="min-h-screen bg-[#020202] text-[#efefef] font-sans selection:bg-[var(--accent-color)] pb-20 overflow-x-hidden">
+      
+      {/* BACKGROUND GLOW - Automatically uses themeColor */}
+      <div className="fixed top-0 left-0 w-full h-[500px] blur-[150px] pointer-events-none -z-10 opacity-20" 
+           style={{ backgroundColor: themeColor }}></div>
+
+      <div className="max-w-[1700px] mx-auto p-4 md:p-8">
         
-        {/* LEFT COLUMN: PLAYER & INFO */}
-        <div className="lg:col-span-8 space-y-8">
+        {/* TOP LAYOUT: Responsive Grid */}
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
           
-          {/* PLAYER WITH THEME GLOW */}
-          <div className="relative aspect-video w-full rounded-[1rem] overflow-hidden bg-black shadow-2xl border border-white/5" 
-               style={{ boxShadow: `0 30px 100px -20px ${currentTheme}20` }}>
-            <iframe 
-              src={`https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${videoData?.bunny_id}?autoplay=true`}
-              className="absolute inset-0 w-full h-full"
-              allowFullScreen
-            />
+          {/* PLAYER (Left/Main) */}
+          <div className="w-full lg:w-[68%] space-y-6">
+            <div className="relative aspect-video bg-black rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/10">
+              <iframe 
+                src={`https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${videoData.bunny_id}?autoplay=true`}
+                className="absolute inset-0 w-full h-full"
+                allowFullScreen
+                style={{ border: "none" }}
+              />
+            </div>
+
+            {/* ACTION BAR */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white/[0.03] backdrop-blur-3xl p-5 md:p-7 rounded-[2rem] border border-white/10">
+              <div className="space-y-1">
+                <h1 className="text-xl md:text-3xl font-black uppercase italic tracking-tighter text-white">
+                  {videoData.folder_name}
+                </h1>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: themeColor }}>Episode {videoData.episode_number}</span>
+                  <div className="w-1 h-1 bg-white/20 rounded-full"></div>
+                  <span className="text-[10px] opacity-40 uppercase font-bold tracking-widest">4K-HDR PRO</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={toggleLike}
+                  className={`group flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black transition-all border border-white/5 ${liked ? 'bg-white text-black' : 'bg-white/5 hover:bg-white/10'}`}
+                >
+                  <ThumbsUp size={18} fill={liked ? "black" : "none"} />
+                  <span className="text-lg">{videoData.likes || 0}</span>
+                </button>
+                {videoData.download_url && (
+                  <a href={videoData.download_url} target="_blank" 
+                     className="flex items-center gap-2 px-8 py-3.5 rounded-2xl font-black text-xs transition-all shadow-xl"
+                     style={{ backgroundColor: themeColor, color: '#fff' }}>
+                    <Download size={18} /> DOWNLOAD
+                  </a>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* TITLE & ACTIONS */}
-          <div className="flex flex-col gap-6">
-            <div className="flex justify-between items-start">
-              <div className="space-y-1">
-                <h1 className="text-3xl font-black italic uppercase tracking-tighter leading-none">
-                  {videoData?.anime_title}
-                </h1>
+          {/* SIDE ANIME SECTION (Responsive Scroll) */}
+          <div className="w-full lg:w-[32%] space-y-4">
+            <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-6 lg:h-[630px] flex flex-col">
+              <div className="flex items-center justify-between mb-6 px-2">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40 flex items-center gap-2">
+                  <Flame size={14} style={{ color: themeColor }} /> Trending Suggestions
+                </h3>
               </div>
               
-              <div className="flex items-center bg-zinc-900/50 rounded-2xl p-1 border border-white/5">
-                <button onClick={() => handleInteraction('like')} 
-                  className={`flex items-center gap-2 px-5 py-2 rounded-xl transition-all ${userAction === 'like' ? 'bg-white/10' : 'hover:bg-white/5'}`}>
-                  <ThumbsUp size={18} style={{ color: userAction === 'like' ? currentTheme : 'white' }} />
-                  <span className="text-sm font-black">{videoData?.likes || 0}</span>
-                </button>
-                <div className="w-[1px] h-4 bg-white/10 mx-1" />
-                <button onClick={() => handleInteraction('dislike')} 
-                  className={`flex items-center gap-2 px-5 py-2 rounded-xl transition-all ${userAction === 'dislike' ? 'bg-white/10' : 'hover:bg-white/5'}`}>
-                  <ThumbsDown size={18} style={{ color: userAction === 'dislike' ? '#ff4444' : 'white' }} />
-                </button>
-              </div>
-            </div>
-
-            {/* DOWNLOAD BUTTON (THEME INJECTED) */}
-            <div className="flex gap-4">
-              {videoData?.download_url && (
-                <a 
-                  href={videoData.download_url} 
-                  target="_blank" 
-                  style={{ backgroundColor: currentTheme }}
-                  className="flex-1 md:flex-none flex items-center justify-center gap-3 px-10 py-4 text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg"
-                >
-                  <Download size={20} /> Download
-                </a>
-              )}
-            </div>
-          </div>
-
-          {/* EPISODE SELECTOR */}
-          <div className="bg-zinc-900/20 p-5 rounded-[2.5rem] border border-white/5">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.4em] mb-3 opacity-30">Selection Matrix</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-15 gap-3">
-              {episodesList.map((ep) => (
-                <button
-                  key={ep.id}
-                  onClick={() => router.push(`/transfer?animeId=${animeId}&epId=${ep.id}`)}
-                  style={{ 
-                    backgroundColor: epId === ep.id ? currentTheme : 'transparent',
-                    borderColor: epId === ep.id ? currentTheme : 'rgba(255,255,255,0.1)'
-                  }}
-                  className={`py-4 rounded-2xl font-black text-xs border transition-all ${epId === ep.id ? 'text-black scale-100 shadow-xl' : 'text-zinc-500 hover:border-white/40'}`}
-                >
-                  {ep.episode_number}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* COMMENTS (REAL-TIME) */}
-          <div className="space-y-8">
-             <div className="flex items-center gap-4">
-                <div className="p-3 bg-zinc-900 rounded-2xl border border-white/5"><MessageCircle size={20} style={{ color: currentTheme }} /></div>
-                <h3 className="text-xl font-black tracking-tighter uppercase italic">{comments.length} Thoughts</h3>
-             </div>
-             
-             <div className="bg-zinc-900/20 p-6 rounded-[2rem] border border-white/5 flex gap-4">
-                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=user`} className="w-12 h-12 rounded-full bg-zinc-800" />
-                <div className="flex-1 space-y-4">
-                  <textarea 
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Write a comment..." 
-                    className="w-full bg-transparent border-b border-white/10 py-2 focus:border-white outline-none text-sm transition-all resize-none h-12"
-                  />
-                  <div className="flex justify-end">
-                    <button onClick={postComment} style={{ backgroundColor: currentTheme }} className="px-8 py-2.5 text-black rounded-xl text-xs font-black uppercase tracking-widest">Post</button>
-                  </div>
-                </div>
-             </div>
-
-             <div className="space-y-6">
-                {comments.map((c) => (
-                  <div key={c.id} className="flex gap-4 p-4 rounded-2xl hover:bg-white/[0.02] transition-all group">
-                    <img src={c.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${c.user}`} className="w-10 h-10 rounded-full bg-zinc-800 border border-white/10" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-1">
-                        <span className="text-xs font-black text-white italic uppercase tracking-wider">@{c.user}</span>
-                        <span className="text-[9px] font-bold text-zinc-600 uppercase">Incoming_Packet</span>
+              {/* MOBILE: Left-to-Right Scroll | PC: Up-Down Scroll */}
+              <div className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-y-auto custom-scrollbar gap-4 lg:gap-4 pb-4 lg:pb-0 scroll-smooth snap-x">
+                {recommendations.map((anime) => (
+                  <div 
+                    key={anime.id}
+                    onClick={() => router.push(`/anime/${anime.id}`)}
+                    className="flex-shrink-0 w-[140px] md:w-[180px] lg:w-full group flex flex-col lg:flex-row gap-4 p-2 md:p-3 rounded-2xl hover:bg-white/[0.05] transition-all cursor-pointer border border-transparent hover:border-white/5 snap-start"
+                  >
+                    <div className="w-full lg:w-16 h-44 lg:h-20 rounded-xl overflow-hidden flex-shrink-0 border border-white/10">
+                      <img src={anime.poster} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" />
+                    </div>
+                    <div className="flex flex-col justify-center gap-1">
+                      <h4 className="text-[10px] md:text-[11px] font-black uppercase italic leading-tight group-hover:text-[var(--accent-color)] transition-colors line-clamp-2" style={{ color: 'inherit' }}>{anime.display_name}</h4>
+                      <div className="flex items-center gap-2 text-[9px] font-bold opacity-30">
+                         <Star size={10} fill="currentColor" /> 9.8 RANK
                       </div>
-                      <p className="text-sm text-zinc-400 font-medium leading-relaxed">{c.text}</p>
                     </div>
                   </div>
                 ))}
-             </div>
-          </div>
-        </div>
-
-        {/* RIGHT COLUMN: TRENDING (CLEANED) */}
-        <div className="lg:col-span-4">
-          <div className="bg-zinc-900/10 p-8 rounded-[3rem] border border-white/5 sticky top-10">
-            <h2 className="text-xs font-black uppercase tracking-[0.5em] mb-8 flex items-center gap-3">
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: currentTheme }}></span> Hot_Recs
-            </h2>
-            <div className="space-y-6">
-              {trending.map((anime) => (
-                <div key={anime.id} onClick={() => router.push(`/transfer?animeId=${anime.id}`)}
-                  className="flex gap-5 cursor-pointer group">
-                  <div className="w-20 h-28 rounded-2xl overflow-hidden shadow-2xl border border-white/5 flex-shrink-0 relative">
-                    <img src={anime.poster} className="w-full h-full object-cover group-hover:scale-110 transition-all duration-700" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                       <Play size={20} fill="white" />
-                    </div>
-                  </div>
-                  <div className="flex flex-col justify-center gap-2">
-                    <h4 className="text-xs font-black uppercase leading-tight line-clamp-2 group-hover:text-zinc-400 transition-colors tracking-tighter">
-                      {anime.title}
-                    </h4>
-                    <div className="flex items-center gap-3">
-                       <div className="flex items-center gap-1 text-[9px] font-black text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-md italic">
-                          <Star size={10} fill="currentColor" /> 8.9
-                       </div>
-                       <span className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">TV Series</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+              </div>
             </div>
           </div>
         </div>
+
+        {/* EPISODES GRID */}
+        <div className="mt-12 space-y-8">
+           <div className="flex items-center gap-4">
+              <div className="w-12 h-[2px]" style={{ backgroundColor: themeColor }}></div>
+              <h2 className="text-xl font-black uppercase italic flex items-center gap-3">
+                 <LayoutGrid style={{ color: themeColor }} size={20} /> Season Episodes
+              </h2>
+           </div>
+
+           <div className="bg-white/[0.02] border border-white/5 p-5 md:p-8 rounded-[2rem] md:rounded-[3rem] grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-4">
+              {episodesList.map((ep) => (
+                <button 
+                  key={ep.id}
+                  onClick={() => router.push(`/transfer?animeId=${animeId}&epId=${ep.id}`)}
+                  className={`group relative aspect-video rounded-x3 md:rounded-2xl overflow-hidden transition-all border ${epId === ep.id ? 'border-opacity-100 shadow-2xl shadow-black' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                  style={{ 
+                    backgroundColor: epId === ep.id ? themeColor : '',
+                    borderColor: epId === ep.id ? themeColor : ''
+                  }}
+                >
+                  <div className={`absolute inset-0 flex items-center justify-center font-black italic text-2xl ${epId === ep.id ? 'text-white' : 'text-white/10 group-hover:text-white/40'}`}>
+                    {ep.episode_number}
+                  </div>
+                </button>
+              ))}
+           </div>
+        </div>
       </div>
+
+      <style jsx global>{`
+        :root { --accent-color: ${themeColor}; }
+        .custom-scrollbar::-webkit-scrollbar { height: 4px; width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: ${themeColor}33; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: ${themeColor}; }
+        
+        /* Smooth Mobile Scrolling */
+        @media (max-width: 1024px) {
+          .custom-scrollbar {
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+          }
+          .custom-scrollbar::-webkit-scrollbar { display: none; }
+        }
+      `}</style>
     </div>
   );
 }
 
 export default function Page() {
-  return (
-    <Suspense fallback={<div className="bg-[#050505] h-screen" />}>
-      <AnimePortal />
-    </Suspense>
-  );
+  return <Suspense><AnimePortal /></Suspense>;
 }

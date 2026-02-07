@@ -96,7 +96,7 @@ export default function Home() {
                    e.target.src = anime.poster || 'https://placehold.co/600x400/050505/FFF?text=No+Image';
                   }}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-80 group-hover:opacity-100" 
-                  alt="banner"
+                  alt="${anime.title} Hindi Dubbed Stream & Download"
                 />
                 
                 {/* Overlay Info */}
@@ -107,12 +107,6 @@ export default function Home() {
                       <span className="bg-white/10 backdrop-blur-md text-[9px] px-2 py-0.5 rounded font-bold border border-white/10 uppercase tracking-tighter">HD • {anime.type || 'TV'}</span>
                    </div>
                 </div>
-
-                {/* <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
-                  <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-black shadow-2xl transform scale-75 group-hover:scale-100 transition-transform">
-                    <Play fill="currentColor" size={4} />
-                  </div>
-                </div> */}
               </div>
 
               {/* Title & Metadata */}

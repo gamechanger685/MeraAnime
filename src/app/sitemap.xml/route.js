@@ -3,22 +3,31 @@ import { collection, getDocs } from 'firebase/firestore';
 
 export async function GET() {
   const querySnapshot = await getDocs(collection(db, "anime"));
-  const episodes = querySnapshot.docs.map(doc => doc.id);
+  
+  // Data fetch karte waqt poster aur description bhi le lein
+  const animeList = querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
 
   const baseUrl = 'https://meraanime.vercel.app';
 
-  // Har anime ke liye URL generate karna
-  const urls = episodes.map(id => `
+  const urls = animeList.map(anime => `
     <url>
-      <loc>${baseUrl}/portal?animeId=${id}</loc>
+      <loc>${baseUrl}/portal?animeId=${anime.id}</loc>
       <lastmod>${new Date().toISOString()}</lastmod>
-      <changefreq>daily</changefreq>
+      <changefreq>weekly</changefreq>
       <priority>0.8</priority>
+      <image:image>
+        <image:loc>${anime.landscapeImg || anime.posterUrl || ''}</image:loc>
+        <image:title>${anime.title || 'Anime'}</image:title>
+      </image:image>
     </url>
   `).join('');
 
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+            xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
       <url>
         <loc>${baseUrl}</loc>
         <lastmod>${new Date().toISOString()}</lastmod>
