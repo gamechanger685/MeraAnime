@@ -4,13 +4,12 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { db } from '@/firebase'; 
 import { collection, query, where, getDocs, limit, doc, runTransaction, onSnapshot } from "firebase/firestore";
 import { ThumbsUp, Download, Play, Star, LayoutGrid, Info, Flame, Zap } from 'lucide-react';
-// ThemeContext use karna zaroori hai colors ke liye
 import { useTheme } from '@/context/ThemeContext'; 
 
 const BUNNY_LIBRARY_ID = "593731";
 
 function AnimePortal() {
-  const { themeColor } = useTheme(); // Global theme color fetch kiya
+  const { themeColor } = useTheme(); 
   const searchParams = useSearchParams();
   const router = useRouter();
   const animeId = searchParams?.get('animeId'); 
@@ -67,16 +66,13 @@ function AnimePortal() {
   return (
     <div className="min-h-screen bg-[#020202] text-[#efefef] font-sans selection:bg-[var(--accent-color)] pb-20 overflow-x-hidden">
       
-      {/* BACKGROUND GLOW - Automatically uses themeColor */}
       <div className="fixed top-0 left-0 w-full h-[500px] blur-[150px] pointer-events-none -z-10 opacity-20" 
            style={{ backgroundColor: themeColor }}></div>
 
       <div className="max-w-[1700px] mx-auto p-4 md:p-8">
         
-        {/* TOP LAYOUT: Responsive Grid */}
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           
-          {/* PLAYER (Left/Main) */}
           <div className="w-full lg:w-[68%] space-y-6">
             <div className="relative aspect-video bg-black rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/5 ring-1 ring-white/10">
               <iframe 
@@ -87,7 +83,6 @@ function AnimePortal() {
               />
             </div>
 
-            {/* ACTION BAR */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white/[0.03] backdrop-blur-3xl p-5 md:p-7 rounded-[2rem] border border-white/10">
               <div className="space-y-1">
                 <h1 className="text-xl md:text-3xl font-black uppercase italic tracking-tighter text-white">
@@ -119,7 +114,6 @@ function AnimePortal() {
             </div>
           </div>
 
-          {/* SIDE ANIME SECTION (Responsive Scroll) */}
           <div className="w-full lg:w-[32%] space-y-4">
             <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-6 lg:h-[630px] flex flex-col">
               <div className="flex items-center justify-between mb-6 px-2">
@@ -128,7 +122,6 @@ function AnimePortal() {
                 </h3>
               </div>
               
-              {/* MOBILE: Left-to-Right Scroll | PC: Up-Down Scroll */}
               <div className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-y-auto custom-scrollbar gap-4 lg:gap-4 pb-4 lg:pb-0 scroll-smooth snap-x">
                 {recommendations.map((anime) => (
                   <div 
@@ -152,7 +145,7 @@ function AnimePortal() {
           </div>
         </div>
 
-        {/* EPISODES GRID */}
+        {/* EPISODES GRID - RESPONSIVE UPGRADE */}
         <div className="mt-12 space-y-8">
            <div className="flex items-center gap-4">
               <div className="w-12 h-[2px]" style={{ backgroundColor: themeColor }}></div>
@@ -161,18 +154,20 @@ function AnimePortal() {
               </h2>
            </div>
 
-           <div className="bg-white/[0.02] border border-white/5 p-5 md:p-8 rounded-[2rem] md:rounded-[3rem] grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-4">
+           {/* Mobile: grid-cols-5, PC: grid-cols-10 | Gap reduced for mobile */}
+           <div className="bg-white/[0.02] border border-white/5 p-4 md:p-8 rounded-[1.5rem] md:rounded-[3rem] grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 md:gap-4">
               {episodesList.map((ep) => (
                 <button 
                   key={ep.id}
                   onClick={() => router.push(`/transfer?animeId=${animeId}&epId=${ep.id}`)}
-                  className={`group relative aspect-video rounded-x3 md:rounded-2xl overflow-hidden transition-all border ${epId === ep.id ? 'border-opacity-100 shadow-2xl shadow-black' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                  className={`group relative h-10 md:h-12 lg:aspect-video rounded-lg md:rounded-2xl overflow-hidden transition-all border ${epId === ep.id ? 'border-opacity-100 shadow-2xl shadow-black' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
                   style={{ 
                     backgroundColor: epId === ep.id ? themeColor : '',
                     borderColor: epId === ep.id ? themeColor : ''
                   }}
                 >
-                  <div className={`absolute inset-0 flex items-center justify-center font-black italic text-2xl ${epId === ep.id ? 'text-white' : 'text-white/10 group-hover:text-white/40'}`}>
+                  {/* Text Size: Mobile: text-xs, PC: text-2xl */}
+                  <div className={`absolute inset-0 flex items-center justify-center font-black italic text-xs md:text-sm lg:text-2xl ${epId === ep.id ? 'text-white' : 'text-white/10 group-hover:text-white/40'}`}>
                     {ep.episode_number}
                   </div>
                 </button>
@@ -187,7 +182,6 @@ function AnimePortal() {
         .custom-scrollbar::-webkit-scrollbar-thumb { background: ${themeColor}33; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: ${themeColor}; }
         
-        /* Smooth Mobile Scrolling */
         @media (max-width: 1024px) {
           .custom-scrollbar {
             -webkit-overflow-scrolling: touch;
